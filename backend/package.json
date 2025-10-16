@@ -18,6 +18,8 @@
     "cosine-similarity": "^1.0.1",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "joi": "^18.0.1",
     "ml-distance": "^4.0.1",
     "mongoose": "^8.19.1",
     "openai": "^6.4.0"
