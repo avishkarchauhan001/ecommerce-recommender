@@ -2,7 +2,6 @@ import UserInteraction from '../models/UserInteraction.js';
 import Product from '../models/Product.js';
 import cosineSimilarity from 'cosine-similarity'; // For vector similarity
 import { generateExplanations } from '../services/llm.js';
-
 import { pipeline } from '@xenova/transformers'; // For embeddings
 
 // Initialize embedding model (run once)
@@ -112,7 +111,6 @@ export async function collaborativeRecommendations(userId, limit = 3) {
 }
 
 // Hybrid recommendation: Combine both, with fallback to popular products
-// Hybrid recommendation: Combine both, with fallback to popular products
 export async function getRecommendations(userId, limit = 3) {
   const contentRecs = await contentBasedRecommendations(userId, limit);
   const collabRecs = await collaborativeRecommendations(userId, limit);
@@ -128,13 +126,45 @@ export async function getRecommendations(userId, limit = 3) {
     recommendations = await Product.find({}).sort({ rating: -1, numReviews: -1 }).limit(limit);
   }
 
-  // Get user behavior summary for LLM prompts
+  // Get detailed user behavior summary for LLM prompts (improved for personalization)
   const userInteractions = await UserInteraction.find({ userId }).populate('productId');
-  const behaviorSummary = userInteractions.length > 0 
-    ? `Viewed/liked: ${userInteractions.map(i => i.productId.name).join(', ')}`
-    : 'New user - based on popular items';
+  let behaviorSummary = 'New user - based on popular items with high ratings and reviews.';
+  if (userInteractions.length > 0) {
+    // Group by action type for richer context
+    const views = userInteractions.filter(i => i.actionType === 'view');
+    const purchases = userInteractions.filter(i => i.actionType === 'purchase');
+    const likes = userInteractions.filter(i => i.actionType === 'like');
 
-  // Generate explanations
+    // Summarize views: List categories and key products
+    const viewSummary = views.length > 0 
+      ? `${views.length} views in categories: ${[...new Set(views.map(i => i.productId.category))].join(', ')}. Key items: ${views.slice(0, 3).map(i => `${i.productId.name} (${i.productId.category})`).join(', ')}`
+      : '';
+
+    // Summarize purchases: Emphasize commitments
+    const purchaseSummary = purchases.length > 0 
+      ? `Purchased ${purchases.length} item(s): ${purchases.map(i => i.productId.name).join(', ')} in ${[...new Set(purchases.map(i => i.productId.category))].join(', ')} category.`
+      : '';
+
+    // Summarize likes: For preferences
+    const likeSummary = likes.length > 0 
+      ? `Liked ${likes.length} item(s): ${likes.slice(0, 2).map(i => i.productId.name).join(', ')} - shows interest in ${[...new Set(likes.map(i => i.productId.category))].join(', ')}`
+      : '';
+
+    // Combine into a narrative summary
+    behaviorSummary = [viewSummary, purchaseSummary, likeSummary]
+      .filter(s => s.trim()) // Remove empty
+      .join('. ') || 'Limited history available - focusing on trending items.';
+
+    // Add overall pattern if multiple interactions
+    if (userInteractions.length > 3) {
+      const topCategory = [...new Map(userInteractions.map(i => [i.productId.category, 0])).entries()]
+        .map(([cat, count]) => ({ cat, count: userInteractions.filter(i => i.productId.category === cat).length }))
+        .sort((a, b) => b.count - a.count)[0];
+      behaviorSummary += ` Overall pattern: Strong interest in ${topCategory.cat} category.`;
+    }
+  }
+
+  // Generate explanations with the detailed summary
   const enrichedRecommendations = await generateExplanations(recommendations, behaviorSummary);
 
   return enrichedRecommendations;
