@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 // Import models
 import Product from './models/Product.js';
 import UserInteraction from './models/UserInteraction.js';
-
+import { getRecommendations } from './utils/recommendations.js';
 dotenv.config();
 
 const app = express();
@@ -32,6 +32,19 @@ app.get('/test', async (req, res) => {
   }
 });
 */
+// Add after your other routes, before MongoDB connection
+
+
+app.get('/recommend/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const recs = await getRecommendations(userId);
+    res.json({ recommendations: recs });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get recommendations', details: error.message });
+  }
+});
+
 // MongoDB connection (remove deprecated options)
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB connected'))
