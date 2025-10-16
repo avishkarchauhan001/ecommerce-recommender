@@ -2,8 +2,11 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import Product from './models/Product';
-import UserInteraction from './models/UserInteraction';
+
+// Import models
+import Product from './models/Product.js';
+import UserInteraction from './models/UserInteraction.js';
+
 dotenv.config();
 
 const app = express();
@@ -13,16 +16,26 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(cors());
 
-// Test route
+// Root route
 app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
-// MongoDB connection
+// Test route to fetch products
+/*
+app.get('/test', async (req, res) => {
+  try {
+    const products = await Product.find({});
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch products', details: error.message });
+  }
+});
+*/
+// MongoDB connection (remove deprecated options)
 mongoose.connect(process.env.MONGODB_URI)
-
-.then(() => console.log('MongoDB connected'))
-.catch((err) => console.error('MongoDB connection error:', err));
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 // Start server
 app.listen(PORT, () => {
