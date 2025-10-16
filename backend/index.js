@@ -39,7 +39,7 @@ app.get('/recommend/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const recs = await getRecommendations(userId);
-    res.json({ recommendations: recs });
+    res.json({ userId, recommendations: recs });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get recommendations', details: error.message });
   }

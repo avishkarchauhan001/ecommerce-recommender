@@ -19,6 +19,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "ml-distance": "^4.0.1",
-    "mongoose": "^8.19.1"
+    "mongoose": "^8.19.1",
+    "openai": "^6.4.0"
   }
 }

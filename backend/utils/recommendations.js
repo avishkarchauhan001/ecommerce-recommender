@@ -1,6 +1,7 @@
 import UserInteraction from '../models/UserInteraction.js';
 import Product from '../models/Product.js';
 import cosineSimilarity from 'cosine-similarity'; // For vector similarity
+import { generateExplanations } from '../services/llm.js';
 
 import { pipeline } from '@xenova/transformers'; // For embeddings
 
@@ -111,6 +112,7 @@ export async function collaborativeRecommendations(userId, limit = 3) {
 }
 
 // Hybrid recommendation: Combine both, with fallback to popular products
+// Hybrid recommendation: Combine both, with fallback to popular products
 export async function getRecommendations(userId, limit = 3) {
   const contentRecs = await contentBasedRecommendations(userId, limit);
   const collabRecs = await collaborativeRecommendations(userId, limit);
@@ -118,15 +120,22 @@ export async function getRecommendations(userId, limit = 3) {
   // Merge and dedupe (prioritize content-based)
   const allRecs = [...new Map([...contentRecs, ...collabRecs].map(p => [p._id, p])).values()];
 
+  let recommendations;
   if (allRecs.length > 0) {
-    return allRecs.slice(0, limit);
+    recommendations = allRecs.slice(0, limit);
+  } else {
+    // Fallback: Most popular products
+    recommendations = await Product.find({}).sort({ rating: -1, numReviews: -1 }).limit(limit);
   }
 
-  // Fallback: Most popular products (for cold start)
-  return await Product.find({}).sort({ rating: -1, numReviews: -1 }).limit(limit);
-}
+  // Get user behavior summary for LLM prompts
+  const userInteractions = await UserInteraction.find({ userId }).populate('productId');
+  const behaviorSummary = userInteractions.length > 0 
+    ? `Viewed/liked: ${userInteractions.map(i => i.productId.name).join(', ')}`
+    : 'New user - based on popular items';
 
-// Popular products fallback
-export async function getPopularProducts(limit = 5) {
-  return await Product.find({}).sort({ numReviews: -1, rating: -1 }).limit(limit);
+  // Generate explanations
+  const enrichedRecommendations = await generateExplanations(recommendations, behaviorSummary);
+
+  return enrichedRecommendations;
 }
