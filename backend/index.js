@@ -2,7 +2,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-
+import Product from './models/Product';
+import UserInteraction from './models/UserInteraction';
 dotenv.config();
 
 const app = express();
